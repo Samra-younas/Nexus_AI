@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Nexus AI</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+*{ margin:0; padding:0; box-sizing:border-box; font-family:'Inter',sans-serif; }
+body{ display:flex; height:100vh; background:#1e1e1e; color:#ececec; overflow:hidden; }
+
+/* ── Sidebar ── */
+#sidebar{
+    width:240px; min-width:240px;
+    background:#1a1a1a; border-right:1px solid #2a2a2a;
+    display:flex; flex-direction:column; padding:16px 10px;
+    transition: transform 0.25s ease;
+    z-index:100;
+}
+.brand{ display:flex; align-items:center; gap:10px; padding:0 4px 16px 4px; }
+.brand-icon{
+    width:32px; height:32px; background:#da7756; border-radius:9px;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.brand-icon svg{ stroke:white; }
+.brand-name{ font-size:14px; font-weight:600; color:#ececec; }
+.brand-sub{ font-size:10.5px; color:#555; }
+
+.new-chat-btn{
+    width:100%; padding:9px 14px;
+    background:#2a2a2a; border:1px solid #3a3a3a;
+    border-radius:9px; color:#e0e0e0;
+    font-size:13px; font-weight:500;
+    cursor:pointer; text-align:left; transition:border-color 0.15s;
+}
+.new-chat-btn:hover{ border-color:#da7756; color:#da7756; }
+
+.section-label{
+    font-size:10px; color:#444; font-weight:500;
+    letter-spacing:0.7px; text-transform:uppercase;
+    padding:14px 4px 5px;
+}
+#session-list{ flex:1; overflow-y:auto; }
+
+.session-item{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:7px 10px; border-radius:7px;
+    cursor:pointer; margin-bottom:2px; transition:background 0.12s;
+}
+.session-item:hover{ background:#222; }
+.session-item.active{ background:#2d1f17; }
+.session-name{
+    font-size:12.5px; color:#888;
+    overflow:hidden; text-overflow:ellipsis;
+    white-space:nowrap; flex:1;
+}
+.session-item.active .session-name{ color:#da7756; font-weight:500; }
+
+.dot-menu-btn{
+    background:transparent; border:none; color:#444;
+    font-size:16px; cursor:pointer; padding:2px 6px;
+    border-radius:5px; line-height:1; flex-shrink:0; letter-spacing:1px;
+}
+.dot-menu-btn:hover{ background:#333; color:#aaa; }
+
+.dropdown{
+    position:fixed; z-index:999; background:#1a1a1a;
+    border:1px solid #333; border-radius:10px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.5);
+    padding:4px; min-width:140px;
+}
+.dropdown-item{
+    display:block; width:100%; padding:8px 12px;
+    background:transparent; border:none; border-radius:6px;
+    font-size:13px; color:#ccc; cursor:pointer; text-align:left;
+}
+.dropdown-item:hover{ background:#2a2a2a; color:white; }
+.dropdown-delete{ color:#f87171 !important; }
+.dropdown-delete:hover{ background:#2a1515 !important; color:#f87171 !important; }
+
+.theme-btn{
+    width:100%; padding:8px 10px; background:transparent;
+    border:1px solid #2a2a2a; border-radius:7px; color:#666;
+    font-size:12px; cursor:pointer; margin-top:8px; transition:all 0.15s;
+}
+.theme-btn:hover{ color:#ececec; border-color:#444; }
+
+/* ── Mobile sidebar toggle ── */
+#sidebar-toggle{
+    display:none;
+    position:fixed; top:12px; left:12px; z-index:200;
+    width:36px; height:36px; background:#2a2a2a;
+    border:1px solid #3a3a3a; border-radius:8px;
+    cursor:pointer; align-items:center; justify-content:center;
+}
+#sidebar-toggle svg{ stroke:#aaa; }
+#sidebar-toggle:hover{ border-color:#da7756; }
+#sidebar-toggle:hover svg{ stroke:#da7756; }
+
+/* Overlay behind sidebar on mobile */
+#sidebar-overlay{
+    display:none; position:fixed; inset:0; z-index:99;
+    background:rgba(0,0,0,0.5);
+}
+#sidebar-overlay.active{ display:block; }
+
+/* ── Main ── */
+#main{ flex:1; display:flex; flex-direction:column; background:#1e1e1e; overflow:hidden; min-width:0; }
+#chat-header{
+    padding:14px 24px 12px; border-bottom:1px solid #2a2a2a;
+    font-size:14px; font-weight:500; color:#ececec;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+#messages{
+    flex:1; overflow-y:auto; padding:24px;
+    display:flex; flex-direction:column; gap:16px;
+}
+
+/* ── Bubbles ── */
+.msg{ display:flex; gap:12px; max-width:680px; position:relative; }
+.msg.user{ flex-direction:row-reverse; align-self:flex-end; }
+
+.avatar{
+    width:30px; height:30px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:12px; font-weight:600; flex-shrink:0; margin-top:2px;
+}
+.user .avatar{ background:#da7756; color:white; }
+.assistant .avatar{ background:#2a2a2a; color:#ececec; }
+
+.bubble{
+    padding:10px 14px; border-radius:12px;
+    font-size:13.5px; line-height:1.7; max-width:600px; word-break:break-word;
+}
+.user .bubble{ background:#2d1f17; color:#ececec; border-radius:12px 2px 12px 12px; }
+.assistant .bubble{ background:#252525; color:#ddd; border-radius:2px 12px 12px 12px; }
+.assistant .bubble p{ margin-bottom:8px; }
+.assistant .bubble p:last-child{ margin-bottom:0; }
+.assistant .bubble code{ background:#1a1a1a; padding:2px 6px; border-radius:4px; font-size:12px; font-family:monospace; word-break:break-all; }
+.assistant .bubble pre{ background:#1a1a1a; padding:12px; border-radius:8px; overflow-x:auto; margin:8px 0; }
+.assistant .bubble pre code{ word-break:normal; }
+.assistant .bubble ul, .assistant .bubble ol{ padding-left:20px; margin:6px 0; }
+.assistant .bubble h1,.assistant .bubble h2,.assistant .bubble h3{ margin:10px 0 6px; color:#ececec; }
+.bubble.error{ background:#2a1515; border:1px solid #5a2020; color:#f87171; }
+
+/* ── Copy button ── */
+.msg-actions{
+    display:flex; gap:4px; align-items:center;
+    position:absolute; bottom:-28px; left:42px;
+    opacity:0; transition:opacity 0.15s; pointer-events:none;
+}
+.msg.user .msg-actions{ left:auto; right:0; }
+.msg:hover .msg-actions{ opacity:1; pointer-events:all; }
+.action-btn{
+    display:flex; align-items:center; gap:5px;
+    background:#2a2a2a; border:1px solid #3a3a3a;
+    border-radius:6px; padding:4px 8px;
+    font-size:11px; color:#888; cursor:pointer;
+    transition:all 0.15s; white-space:nowrap;
+}
+.action-btn:hover{ background:#333; color:#ececec; border-color:#555; }
+.action-btn svg{ width:12px; height:12px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; }
+.action-btn.copied{ color:#4ade80; border-color:#4ade80; }
+
+/* ── File pills ── */
+#file-pills{ display:none; flex-wrap:wrap; gap:8px; padding:8px 0 4px; }
+#file-pills.has-files{ display:flex; }
+.file-pill{
+    display:flex; align-items:center; gap:7px;
+    background:#2a2a2a; border:1px solid #3a3a3a;
+    border-radius:8px; padding:5px 8px 5px 6px; max-width:200px;
+}
+.file-pill:hover{ border-color:#555; }
+.pill-thumb{ width:32px; height:32px; border-radius:5px; object-fit:cover; flex-shrink:0; }
+.pill-icon{
+    width:32px; height:32px; border-radius:5px;
+    background:#1a1a1a; display:flex; align-items:center;
+    justify-content:center; flex-shrink:0; font-size:16px;
+}
+.pill-info{ flex:1; overflow:hidden; }
+.pill-name{ font-size:11.5px; color:#ccc; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:120px; }
+.pill-type{ font-size:10px; color:#666; margin-top:1px; }
+.pill-remove{
+    background:transparent; border:none; color:#555;
+    cursor:pointer; font-size:14px; line-height:1;
+    padding:2px; border-radius:4px; flex-shrink:0;
+}
+.pill-remove:hover{ color:#f87171; background:#3a2a2a; }
+
+.bubble-files{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+.bubble-pill{
+    display:flex; align-items:center; gap:6px;
+    background:#1e1e1e; border:1px solid #333;
+    border-radius:7px; padding:4px 8px 4px 5px; max-width:180px;
+}
+.bubble-pill-icon{ font-size:15px; }
+.bubble-pill-name{ font-size:11px; color:#aaa; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:110px; }
+.bubble-thumb{ width:28px; height:28px; border-radius:4px; object-fit:cover; flex-shrink:0; }
+
+/* ── Drag overlay ── */
+#drag-overlay{
+    display:none; position:fixed; inset:0; z-index:888;
+    background:rgba(218,119,86,0.08); border:2px dashed #da7756;
+    pointer-events:none; align-items:center; justify-content:center;
+}
+#drag-overlay.active{ display:flex; }
+#drag-overlay span{
+    font-size:16px; color:#da7756; font-weight:500;
+    background:#1e1e1e; padding:12px 24px; border-radius:10px;
+    border:1px solid #da7756;
+}
+
+/* ── Typing dots ── */
+.typing{ display:flex; gap:5px; align-items:center; padding:8px 0; }
+.dot{ width:7px; height:7px; background:#da7756; border-radius:50%; animation:bounce 1.2s infinite ease-in-out; }
+.dot:nth-child(2){ animation-delay:0.2s; }
+.dot:nth-child(3){ animation-delay:0.4s; }
+@keyframes bounce{
+    0%,80%,100%{ transform:scale(0.7); opacity:0.4; }
+    40%{ transform:scale(1.1); opacity:1; }
+}
+
+/* ── Input area ── */
+#input-area{ padding:12px 24px 20px; border-top:1px solid #2a2a2a; background:#1e1e1e; }
+#input-box{
+    display:flex; align-items:flex-end; gap:10px;
+    background:#2a2a2a; border:1.5px solid #3a3a3a;
+    border-radius:12px; padding:10px 12px; transition:border-color 0.2s;
+}
+#input-box:focus-within{ border-color:#da7756; }
+#attach-btn{
+    width:30px; height:30px; background:transparent;
+    border:1px solid #3a3a3a; border-radius:7px;
+    cursor:pointer; display:flex; align-items:center;
+    justify-content:center; flex-shrink:0; transition:all 0.15s;
+}
+#attach-btn:hover{ border-color:#da7756; }
+#attach-btn svg{ stroke:#888; }
+#attach-btn:hover svg{ stroke:#da7756; }
+#file-input{ display:none; }
+#input{
+    flex:1; background:transparent; border:none; outline:none;
+    color:#ececec; font-size:14px; resize:none; line-height:1.5;
+    max-height:120px; min-height:24px;
+}
+#input::placeholder{ color:#555; }
+#send-btn{
+    width:32px; height:32px; background:#da7756; border:none;
+    border-radius:8px; cursor:pointer; display:flex;
+    align-items:center; justify-content:center;
+    transition:opacity 0.2s; flex-shrink:0;
+}
+#send-btn:disabled{ opacity:0.3; cursor:not-allowed; }
+#send-btn svg{ stroke:white; }
+
+::-webkit-scrollbar{ width:4px; }
+::-webkit-scrollbar-track{ background:transparent; }
+::-webkit-scrollbar-thumb{ background:#333; border-radius:4px; }
+
+/* ════════════════════════════════════════════
+   RESPONSIVE BREAKPOINTS
+   ════════════════════════════════════════════ */
+
+/* ── Large desktop (1280px+) ── */
+@media (min-width:1280px){
+    #sidebar{ width:260px; min-width:260px; }
+    .msg{ max-width:780px; }
+    .bubble{ max-width:680px; font-size:14px; }
+    #messages{ padding:28px 32px; }
+    #input-area{ padding:14px 32px 24px; }
+}
+
+/* ── Standard desktop (1024px - 1279px) ── already default ── */
+
+/* ── Tablet landscape (768px - 1023px) ── */
+@media (max-width:1023px){
+    #sidebar{ width:200px; min-width:200px; }
+    .bubble{ max-width:480px; }
+    #messages{ padding:20px; }
+    #input-area{ padding:10px 20px 16px; }
+}
+
+/* ── Tablet portrait + large mobile (600px - 767px) ── */
+@media (max-width:767px){
+    /* Sidebar slides in/out */
+    #sidebar{
+        position:fixed; top:0; left:0; height:100%;
+        width:260px; min-width:260px;
+        transform:translateX(-100%);
+        box-shadow:4px 0 24px rgba(0,0,0,0.4);
+    }
+    #sidebar.open{ transform:translateX(0); }
+
+    #sidebar-toggle{ display:flex; }
+
+    /* Push header title right to not overlap toggle */
+    #chat-header{ padding-left:56px; font-size:13px; }
+
+    #main{ width:100%; }
+    #messages{ padding:16px; gap:14px; }
+
+    .msg{ max-width:100%; }
+    .bubble{ max-width:calc(100vw - 80px); font-size:13px; }
+
+    #input-area{ padding:8px 12px 14px; }
+    #input-box{ padding:8px 10px; gap:8px; }
+
+    /* Copy action bar — show on tap on mobile */
+    .msg-actions{ bottom:-26px; }
+
+    .file-pill{ max-width:160px; }
+    .pill-name{ max-width:90px; }
+}
+
+/* ── Small mobile (up to 599px) ── */
+@media (max-width:599px){
+    #sidebar{ width:80vw; min-width:unset; }
+
+    #chat-header{ padding-left:52px; font-size:12.5px; }
+
+    #messages{ padding:12px; gap:12px; }
+
+    .bubble{
+        max-width:calc(100vw - 70px);
+        font-size:13px; padding:9px 12px;
+    }
+    .assistant .bubble code{ font-size:11px; }
+    .assistant .bubble pre{ padding:10px; font-size:11px; }
+
+    .avatar{ width:26px; height:26px; font-size:10px; }
+
+    #input-area{ padding:6px 10px 12px; }
+    #input-box{ padding:7px 9px; gap:7px; border-radius:10px; }
+    #input{ font-size:13px; }
+    #send-btn{ width:30px; height:30px; border-radius:7px; }
+    #attach-btn{ width:28px; height:28px; }
+
+    .file-pill{ max-width:140px; }
+    .pill-name{ max-width:75px; }
+
+    /* Hide copy label on tiny screens, show only icon */
+    .action-btn span{ display:none; }
+}
+
+/* ── Very small (iPhone SE etc, up to 375px) ── */
+@media (max-width:375px){
+    .bubble{ max-width:calc(100vw - 60px); font-size:12.5px; }
+    #chat-header{ font-size:12px; }
+    #input{ font-size:12px; }
+}
+
+/* ── Light mode ── */
+body.light{ background:#ffffff; color:#111; }
+body.light #sidebar{ background:#f9f9f8; border-right-color:#e8e5e0; }
+body.light .brand-name{ color:#111; }
+body.light .brand-sub{ color:#bbb; }
+body.light .new-chat-btn{ background:white; border-color:#e2e2e0; color:#111; }
+body.light .section-label{ color:#aaa; }
+body.light .session-name{ color:#555; }
+body.light .session-item:hover{ background:#f0f0ee; }
+body.light .session-item.active{ background:#fff3ef; }
+body.light .dot-menu-btn{ color:#ccc; }
+body.light .dot-menu-btn:hover{ background:#efefef; color:#333; }
+body.light .dropdown{ background:white; border-color:#e5e5e5; box-shadow:0 4px 20px rgba(0,0,0,0.1); }
+body.light .dropdown-item{ color:#333; }
+body.light .dropdown-item:hover{ background:#f5f5f5; }
+body.light .theme-btn{ border-color:#e2e2e0; color:#888; }
+body.light #main{ background:#ffffff; }
+body.light #chat-header{ border-bottom-color:#f0f0ee; color:#111; }
+body.light .assistant .bubble{ background:#f9f9f8; color:#111; }
+body.light .assistant .bubble code{ background:#efefef; }
+body.light .assistant .bubble pre{ background:#efefef; }
+body.light .assistant .bubble h1,
+body.light .assistant .bubble h2,
+body.light .assistant .bubble h3{ color:#111; }
+body.light .user .bubble{ background:#fff3ef; color:#111; }
+body.light #input-area{ background:#fff; border-top-color:#f0f0ee; }
+body.light #input-box{ background:#fafafa; border-color:#e5e5e5; }
+body.light #input{ color:#111; }
+body.light #input::placeholder{ color:#aaa; }
+body.light .user .avatar{ background:#da7756; }
+body.light .assistant .avatar{ background:#e5e5e5; color:#333; }
+body.light .file-pill{ background:#f0f0ee; border-color:#e2e2e0; }
+body.light .pill-icon{ background:#e5e5e5; }
+body.light .pill-name{ color:#333; }
+body.light .bubble-pill{ background:#f0f0ee; border-color:#e2e2e0; }
+body.light .bubble-pill-name{ color:#555; }
+body.light .bubble.error{ background:#fff0f0; border-color:#f87171; color:#c0392b; }
+body.light .action-btn{ background:#f5f5f4; border-color:#e5e5e3; color:#888; }
+body.light .action-btn:hover{ background:#efefed; color:#333; border-color:#ccc; }
+body.light #sidebar-toggle{ background:#f0f0ee; border-color:#e2e2e0; }
+body.light #sidebar-toggle svg{ stroke:#555; }
+body.light #session-list input{
+    background:#fff !important; color:#111 !important;
+    border-color:#da7756 !important;
+}
+body.light #drag-overlay{ background:rgba(218,119,86,0.05); }
+</style>
+</head>
+<body>
+
+<div id="drag-overlay"><span>📎 Drop files here</span></div>
+
+<!-- Mobile sidebar overlay -->
+<div id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<!-- Mobile toggle button -->
+<button id="sidebar-toggle" onclick="toggleSidebar()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+        <line x1="3" y1="6" x2="21" y2="6"/>
+        <line x1="3" y1="12" x2="21" y2="12"/>
+        <line x1="3" y1="18" x2="21" y2="18"/>
+    </svg>
+</button>
+
+<div id="sidebar">
+    <div class="brand">
+        <div class="brand-icon">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
+        </div>
+        <div>
+            <div class="brand-name">Nexus AI</div>
+            <div class="brand-sub">Powered by Claude</div>
+        </div>
+    </div>
+    <button class="new-chat-btn" onclick="newChat()">＋  New Chat</button>
+    <div class="section-label">Recents</div>
+    <div id="session-list"></div>
+    <button class="theme-btn" id="themeBtn" onclick="toggleTheme()">☀️  Light Mode</button>
+</div>
+
+<div id="main">
+    <div id="chat-header">Nexus AI</div>
+    <div id="messages"></div>
+    <div id="input-area">
+        <div id="file-pills"></div>
+        <div id="input-box">
+            <button id="attach-btn" onclick="document.getElementById('file-input').click()" title="Attach file">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
+                </svg>
+            </button>
+            <input type="file" id="file-input" accept="*/*" multiple onchange="handleFileSelect(event)"/>
+            <textarea id="input" rows="1" placeholder="Ask anything…"
+                onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+            <button id="send-btn" onclick="send()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round">
+                    <path d="M22 2L11 13M22 2L15 22 11 13 2 9l20-7z"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let sessions = {};
+let activeId = null;
+let isLoading = false;
+let isDark = true;
+let selectedFiles = [];
+const REQUEST_TIMEOUT_MS = 90000;
+
+const TEXT_EXTS = new Set([
+    "py","js","ts","jsx","tsx","html","css","scss","json","xml","yaml","yml",
+    "toml","ini","cfg","env","txt","md","markdown","csv","sql","sh","bash",
+    "c","cpp","h","java","go","rs","php","rb","swift","kt","dart","r","m",
+    "tf","dockerfile","makefile","gitignore","lock","log"
+]);
+
+// ── Mobile sidebar ────────────────────────────────────────────────────────────
+function toggleSidebar(){
+    document.getElementById("sidebar").classList.toggle("open");
+    document.getElementById("sidebar-overlay").classList.toggle("active");
+}
+function closeSidebar(){
+    document.getElementById("sidebar").classList.remove("open");
+    document.getElementById("sidebar-overlay").classList.remove("active");
+}
+// Close sidebar when session selected on mobile
+function onSessionClick(sid){
+    openSession(sid);
+    if(window.innerWidth <= 767) closeSidebar();
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function uid(){ return Math.random().toString(36).slice(2,10); }
+function truncate(t,n=28){ return t.length<=n?t:t.slice(0,n)+"…"; }
+function fileCategory(file){
+    if(file.type.startsWith("image/")) return "image";
+    if(file.type==="application/pdf") return "pdf";
+    return "other";
+}
+function fileIcon(file){
+    const cat=fileCategory(file);
+    if(cat==="pdf") return "📄";
+    if(cat==="image") return "🖼";
+    const ext=file.name.split(".").pop().toLowerCase();
+    const map={doc:"📝",docx:"📝",xls:"📊",xlsx:"📊",ppt:"📑",pptx:"📑",
+               txt:"📃",csv:"📊",zip:"🗜",mp4:"🎬",mp3:"🎵",json:"🔧",
+               py:"🐍",js:"⚡",ts:"⚡",html:"🌐",css:"🎨",md:"📋"};
+    return map[ext]||"📎";
+}
+function fileSizeLabel(b){
+    if(b<1024) return b+" B";
+    if(b<1048576) return (b/1024).toFixed(1)+" KB";
+    return (b/1048576).toFixed(1)+" MB";
+}
+function isTextFile(file){
+    const ext=file.name.includes(".")?file.name.split(".").pop().toLowerCase():"";
+    return TEXT_EXTS.has(ext)||file.type.startsWith("text/");
+}
+function readAsText(file){
+    return new Promise((res,rej)=>{
+        const r=new FileReader();
+        r.onload=()=>res(r.result);
+        r.onerror=()=>rej(new Error("Could not read file"));
+        r.readAsText(file);
+    });
+}
+
+// ── Fetch with timeout ────────────────────────────────────────────────────────
+async function fetchWithTimeout(url,options,ms=REQUEST_TIMEOUT_MS){
+    const ctrl=new AbortController();
+    const timer=setTimeout(()=>ctrl.abort(),ms);
+    try{
+        const res=await fetch(url,{...options,signal:ctrl.signal});
+        clearTimeout(timer); return res;
+    }catch(e){
+        clearTimeout(timer);
+        if(e.name==="AbortError") throw new Error("Request timed out. Please try again.");
+        throw e;
+    }
+}
+
+// ── Copy button ───────────────────────────────────────────────────────────────
+function copyIconSVG(){ return `<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>`; }
+function checkIconSVG(){ return `<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>`; }
+
+function makeActionBar(rawText){
+    const bar=document.createElement("div");
+    bar.className="msg-actions";
+    const btn=document.createElement("button");
+    btn.className="action-btn";
+    btn.innerHTML=`${copyIconSVG()} <span>Copy</span>`;
+    btn.onclick=async()=>{
+        try{ await navigator.clipboard.writeText(rawText); }
+        catch{
+            const ta=document.createElement("textarea");
+            ta.value=rawText; ta.style.cssText="position:fixed;opacity:0";
+            document.body.appendChild(ta); ta.select();
+            document.execCommand("copy"); document.body.removeChild(ta);
+        }
+        btn.classList.add("copied");
+        btn.innerHTML=`${checkIconSVG()} <span>Copied</span>`;
+        setTimeout(()=>{ btn.classList.remove("copied"); btn.innerHTML=`${copyIconSVG()} <span>Copy</span>`; },2000);
+    };
+    bar.appendChild(btn);
+    return bar;
+}
+
+// ── File handling ─────────────────────────────────────────────────────────────
+function handleFileSelect(e){ Array.from(e.target.files).forEach(addFile); e.target.value=""; }
+function addFile(file){
+    const cat=fileCategory(file);
+    const entry={file,previewUrl:null,cat,id:uid()};
+    if(cat==="image"){
+        const r=new FileReader();
+        r.onload=ev=>{ entry.previewUrl=ev.target.result; renderPills(); };
+        r.readAsDataURL(file);
+    }
+    selectedFiles.push(entry); renderPills();
+}
+function removeFile(id){ selectedFiles=selectedFiles.filter(f=>f.id!==id); renderPills(); }
+function renderPills(){
+    const container=document.getElementById("file-pills");
+    container.innerHTML="";
+    if(!selectedFiles.length){ container.classList.remove("has-files"); return; }
+    container.classList.add("has-files");
+    selectedFiles.forEach(entry=>{
+        const pill=document.createElement("div");
+        pill.className="file-pill";
+        const thumbHtml=(entry.cat==="image"&&entry.previewUrl)
+            ?`<img class="pill-thumb" src="${entry.previewUrl}" alt=""/>`
+            :`<div class="pill-icon">${fileIcon(entry.file)}</div>`;
+        const typeLabel=entry.cat==="pdf"?"PDF"
+            :entry.cat==="image"?entry.file.type.split("/")[1].toUpperCase()
+            :(entry.file.name.split(".").pop().toUpperCase()||"File");
+        pill.innerHTML=`${thumbHtml}
+            <div class="pill-info">
+                <div class="pill-name" title="${entry.file.name}">${truncate(entry.file.name,18)}</div>
+                <div class="pill-type">${typeLabel} · ${fileSizeLabel(entry.file.size)}</div>
+            </div>
+            <button class="pill-remove">✕</button>`;
+        pill.querySelector(".pill-remove").onclick=()=>removeFile(entry.id);
+        container.appendChild(pill);
+    });
+}
+
+// ── Drag & drop ───────────────────────────────────────────────────────────────
+const overlay=document.getElementById("drag-overlay");
+let dragCounter=0;
+document.addEventListener("dragenter",e=>{ if(e.dataTransfer.types.includes("Files")){dragCounter++;overlay.classList.add("active");} });
+document.addEventListener("dragleave",()=>{ dragCounter--; if(dragCounter<=0){dragCounter=0;overlay.classList.remove("active");} });
+document.addEventListener("dragover",e=>e.preventDefault());
+document.addEventListener("drop",e=>{ e.preventDefault();dragCounter=0;overlay.classList.remove("active"); if(e.dataTransfer.files.length) Array.from(e.dataTransfer.files).forEach(addFile); });
+
+// ── Paste ─────────────────────────────────────────────────────────────────────
+document.addEventListener("paste",e=>{
+    Array.from(e.clipboardData?.items||[]).forEach(item=>{ if(item.kind==="file"){const f=item.getAsFile();if(f)addFile(f);} });
+});
+
+// ── Supabase API ──────────────────────────────────────────────────────────────
+async function dbLoadSessions(){
+    try{ const res=await fetch("/sessions"); const data=await res.json(); return data.sessions||[]; }catch{ return []; }
+}
+async function dbLoadSession(sid){
+    try{ const res=await fetch(`/sessions/${sid}`); const data=await res.json(); return data.session||null; }catch{ return null; }
+}
+async function dbSaveSession(sess,sid){
+    try{ await fetch("/sessions",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({session_id:sid,name:sess.name,messages:sess.messages,api_messages:sess.apiMessages})}); }
+    catch(e){ console.warn("Save failed:",e); }
+}
+async function dbRenameSession(sid,name){
+    try{ await fetch(`/sessions/${sid}/rename`,{method:"PATCH",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({session_id:sid,name})}); }catch(e){ console.warn("Rename failed:",e); }
+}
+async function dbDeleteSession(sid){
+    try{ await fetch(`/sessions/${sid}`,{method:"DELETE"}); }catch(e){ console.warn("Delete failed:",e); }
+}
+
+// ── Sessions ──────────────────────────────────────────────────────────────────
+async function newChat(){
+    const sid=uid();
+    sessions[sid]={name:null,created:new Date().toLocaleString(),messages:[],apiMessages:[]};
+    activeId=sid;
+    renderSidebar(); renderMessages();
+    document.getElementById("chat-header").textContent="Nexus AI";
+    document.getElementById("input").focus();
+    if(window.innerWidth<=767) closeSidebar();
+}
+
+async function openSession(sid){
+    if(!sessions[sid]||sessions[sid].messages.length===0){
+        const full=await dbLoadSession(sid);
+        if(full){ sessions[sid]={name:full.name,created:full.created_at,messages:full.messages||[],apiMessages:full.api_messages||[]}; }
+    }
+    activeId=sid; renderSidebar(); renderMessages();
+    document.getElementById("chat-header").textContent=sessions[sid]?.name||"Nexus AI";
+}
+
+function renderSidebar(){
+    const list=document.getElementById("session-list");
+    list.innerHTML="";
+    Object.entries(sessions).sort((a,b)=>b[1].created>a[1].created?1:-1).forEach(([sid,s])=>{
+        const name=s.name||s.created;
+        const div=document.createElement("div");
+        div.className="session-item"+(sid===activeId?" active":"");
+        div.innerHTML=`<span class="session-name">${truncate(name)}</span>
+            <button class="dot-menu-btn" onclick="openMenu(event,'${sid}')">···</button>`;
+        div.querySelector(".session-name").onclick=()=>onSessionClick(sid);
+        list.appendChild(div);
+    });
+}
+
+function renderMessages(){
+    const box=document.getElementById("messages");
+    box.innerHTML="";
+    if(!activeId) return;
+    (sessions[activeId]?.messages||[]).forEach(m=>appendStoredMsg(m));
+}
+
+function appendStoredMsg(m){
+    const box=document.getElementById("messages");
+    const div=document.createElement("div");
+    div.className="msg "+m.role;
+    let filesHtml="";
+    if(m.files&&m.files.length){
+        const pills=m.files.map(f=>{
+            if(f.cat==="image"&&f.previewUrl)
+                return `<div class="bubble-pill"><img class="bubble-thumb" src="${f.previewUrl}" alt=""/><span class="bubble-pill-name">${truncate(f.name,16)}</span></div>`;
+            return `<div class="bubble-pill"><span class="bubble-pill-icon">${f.icon}</span><span class="bubble-pill-name">${truncate(f.name,16)}</span></div>`;
+        }).join("");
+        filesHtml=`<div class="bubble-files">${pills}</div>`;
+    }
+    const isError=m.role==="assistant"&&m.content.startsWith("❌");
+    const bubbleClass="bubble"+(isError?" error":"");
+    const rendered=m.role==="assistant"?marked.parse(m.content):(m.content||"");
+    div.innerHTML=`<div class="avatar">${m.role==="user"?"U":"AI"}</div>
+        <div class="${bubbleClass}">${filesHtml}${rendered}</div>`;
+    if(m.role==="assistant"&&!isError) div.appendChild(makeActionBar(m.content));
+    box.appendChild(div);
+    scrollBottom();
+}
+
+// ── Dropdown ──────────────────────────────────────────────────────────────────
+function openMenu(e,sid){
+    e.stopPropagation(); closeMenu();
+    const menu=document.createElement("div");
+    menu.className="dropdown"; menu.id="dropdown";
+    const rect=e.target.getBoundingClientRect();
+    menu.style.top=rect.bottom+4+"px";
+    menu.style.left=Math.min(rect.left-110, window.innerWidth-160)+"px";
+    menu.innerHTML=`<button class="dropdown-item" onclick="renameSession('${sid}')">✏️  Rename</button>
+        <button class="dropdown-item dropdown-delete" onclick="deleteSession('${sid}')">🗑  Delete</button>`;
+    document.body.appendChild(menu);
+    setTimeout(()=>document.addEventListener("click",closeMenu,{once:true}),0);
+}
+function closeMenu(){ document.getElementById("dropdown")?.remove(); }
+
+function renameSession(sid){
+    closeMenu();
+    const current=sessions[sid]?.name||sessions[sid]?.created||"";
+    document.querySelectorAll(".session-item").forEach(item=>{
+        const nameEl=item.querySelector(".session-name");
+        if(nameEl&&nameEl.textContent===truncate(current)){
+            const inp=document.createElement("input");
+            inp.value=current;
+            inp.style.cssText=`width:100%;background:#2a2a2a;border:1px solid #da7756;border-radius:6px;padding:5px 8px;color:#ececec;font-size:12.5px;outline:none;`;
+            item.innerHTML=""; item.appendChild(inp); inp.focus(); inp.select();
+            async function save(){
+                const val=inp.value.trim();
+                if(val){ sessions[sid].name=val; if(activeId===sid) document.getElementById("chat-header").textContent=val; await dbRenameSession(sid,val); }
+                renderSidebar();
+            }
+            inp.addEventListener("keydown",e=>{ if(e.key==="Enter") save(); if(e.key==="Escape") renderSidebar(); });
+            inp.addEventListener("blur",save);
+        }
+    });
+}
+
+async function deleteSession(sid){
+    closeMenu();
+    if(!confirm("Delete this session?")) return;
+    await dbDeleteSession(sid);
+    delete sessions[sid];
+    if(activeId===sid){
+        activeId=null;
+        document.getElementById("messages").innerHTML="";
+        document.getElementById("chat-header").textContent="Nexus AI";
+        const rem=Object.keys(sessions);
+        if(rem.length>0) await openSession(rem[0]); else await newChat();
+    }
+    renderSidebar();
+}
+
+// ── Input ─────────────────────────────────────────────────────────────────────
+function handleKey(e){ if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();} }
+function autoResize(el){ el.style.height="auto"; el.style.height=Math.min(el.scrollHeight,120)+"px"; }
+function unlockUI(){
+    isLoading=false;
+    document.getElementById("send-btn").disabled=false;
+    document.getElementById("input").disabled=false;
+    document.getElementById("input").focus();
+}
+
+// ── Send ──────────────────────────────────────────────────────────────────────
+async function send(){
+    if(isLoading) return;
+    if(!activeId) await newChat();
+    const input=document.getElementById("input");
+    const btn=document.getElementById("send-btn");
+    const text=input.value.trim();
+    if(!text&&!selectedFiles.length) return;
+    input.value=""; input.style.height="auto";
+    const sess=sessions[activeId];
+    if(!sess.name&&sess.messages.length===0){
+        sess.name=truncate(text||selectedFiles[0]?.file.name||"File",35);
+        document.getElementById("chat-header").textContent=sess.name;
+        renderSidebar();
+    }
+    const filesToSend=[...selectedFiles];
+    const msgFiles=filesToSend.map(e=>({cat:e.cat,previewUrl:e.previewUrl,name:e.file.name,icon:fileIcon(e.file)}));
+    selectedFiles=[]; renderPills();
+    isLoading=true; btn.disabled=true; input.disabled=true;
+    const userDisplayMsg={role:"user",content:text,files:msgFiles};
+    sess.messages.push(userDisplayMsg); appendStoredMsg(userDisplayMsg);
+    const dots=document.createElement("div");
+    dots.className="msg assistant"; dots.id="typing";
+    dots.innerHTML=`<div class="avatar">AI</div><div class="bubble"><div class="typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>`;
+    document.getElementById("messages").appendChild(dots); scrollBottom();
+    try{
+        let answer;
+        if(filesToSend.length>0){
+            const form=new FormData();
+            form.append("message",text);
+            filesToSend.forEach(e=>form.append("files",e.file));
+            const res=await fetchWithTimeout("/chat-files",{method:"POST",body:form});
+            if(!res.ok){const t=await res.text();throw new Error(`Server ${res.status}: ${t}`);}
+            const data=await res.json();
+            if(data.error) throw new Error(data.error);
+            answer=data.answer;
+            let filesSummary="";
+            for(const entry of filesToSend){
+                if(isTextFile(entry.file)){
+                    try{const c=await readAsText(entry.file);filesSummary+=`\n[File: ${entry.file.name}]\n\`\`\`\n${c}\n\`\`\`\n`;}
+                    catch{filesSummary+=`\n[File: ${entry.file.name} — could not read]\n`;}
+                }else if(entry.cat==="image"){filesSummary+=`\n[Image: ${entry.file.name}]\n`;}
+                else if(entry.cat==="pdf"){filesSummary+=`\n[PDF: ${entry.file.name}]\n`;}
+                else{filesSummary+=`\n[File: ${entry.file.name}]\n`;}
+            }
+            sess.apiMessages.push({role:"user",content:(filesSummary+(text?`\nUser: ${text}`:"")).trim()});
+        }else{
+            sess.apiMessages.push({role:"user",content:text});
+            const res=await fetchWithTimeout("/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:sess.apiMessages})});
+            if(!res.ok){const t=await res.text();throw new Error(`Server ${res.status}: ${t}`);}
+            const data=await res.json();
+            if(data.error) throw new Error(data.error);
+            answer=data.answer;
+        }
+        sess.apiMessages.push({role:"assistant",content:answer});
+        sess.messages.push({role:"assistant",content:answer});
+        document.getElementById("typing")?.remove();
+        appendStoredMsg({role:"assistant",content:answer});
+        await dbSaveSession(sess,activeId);
+    }catch(err){
+        document.getElementById("typing")?.remove();
+        const errMsg=`❌ ${err.message||"Unknown error. Please try again."}`;
+        sess.messages.push({role:"assistant",content:errMsg});
+        appendStoredMsg({role:"assistant",content:errMsg});
+        if(sess.apiMessages.length&&sess.apiMessages[sess.apiMessages.length-1].role==="user") sess.apiMessages.pop();
+    }
+    unlockUI();
+}
+
+function scrollBottom(){ const m=document.getElementById("messages"); m.scrollTop=m.scrollHeight; }
+
+// ── Theme ─────────────────────────────────────────────────────────────────────
+function toggleTheme(){
+    isDark=!isDark;
+    document.body.classList.toggle("light",!isDark);
+    document.getElementById("themeBtn").textContent=isDark?"☀️  Light Mode":"🌙  Dark Mode";
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+async function init(){
+    const list=await dbLoadSessions();
+    if(list.length>0){
+        list.forEach(s=>{ sessions[s.session_id]={name:s.name,created:s.updated_at||s.created_at,messages:[],apiMessages:[]}; });
+        renderSidebar();
+        await openSession(list[0].session_id);
+    }else{ await newChat(); }
+}
+
+init();
+</script>
+</body>
+</html>
