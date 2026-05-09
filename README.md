@@ -4,6 +4,11 @@ Claude-powered team chat tool built with FastAPI.
 
 🚀 **Live Demo:** https://nexus-ai-production-494b.up.railway.app
 
+
+**Video Demo:**
+
+https://drive.google.com/drive/my-drive?dmr=1&ec=wgc-drive-%5Bmodule%5D-goto
+
 ## ✨ Features
 
 - 💬 **Chat with AI** — powered by Anthropic Claude
