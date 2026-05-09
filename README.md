@@ -1,8 +1,8 @@
 # Nexus AI 🤖
 
-> AI chat app powered by Claude API — file upload, session memory, Supabase storage. Built with FastAPI + vanilla JS.
+Claude-powered team chat tool built with FastAPI.
 
----
+🚀 **Live Demo:** https://nexus-ai-production-494b.up.railway.app
 
 ## ✨ Features
 
